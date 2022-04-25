@@ -2,17 +2,16 @@
   @ Date: 2022-04-20
   @ Author: jekim
   
+  # Detect the corner of chessboard
+  
   1. resize the image (original image size: 720:1279) to detect cross-point clearly
   2. detect cross-point on chess-board
   3. rearrange:flip the 2d-keypoint to match the 3d-keypoint of real-world
-  4. (yet)rescale the 2d-keypoint of resized image to that of the original image
+  4. rescale the 2d-keypoint of resized image to that of the original image
   
 '''
-# detect the corner of chessboard
-# from easymocap.annotator.file_utils import getFileList, read_json, save_json
+
 from tqdm import tqdm
-# from easymocap.annotator import ImageFolder
-# from easymocap.annotator.chessboard import getChessboard3d, findChessboardCorners
 import numpy as np
 from os.path import join
 import matplotlib.pyplot as plt
@@ -181,54 +180,6 @@ def create_chessboard(path, pattern, gridSize, ext):
         else:
             save_json(annname, template)
 
-# def rearrange(annots,img,pattern):
-    
-#     img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
-    
-#     ind_red=np.where((img==[254,0,0]).all(axis=2)) # red color in real 3d world [0,0,0]
-#     ind_blue = np.where((img==[0,0,254]).all(axis=2)) # blue color in real 3d world[5,9,0]
-#     ind_mag = np.where((img==[255,0,254]).all(axis=2)) # magenta color in real 3d world[5,0,0]
-#     ind_yel = np.where((img==[255,255,1]).all(axis=2)) # yellow color in real 3d world [0,9,0]
-    
-#     mean_red=[ind_red[1].mean(), ind_red[0].mean()]
-#     mean_blue=[ind_blue[1].mean(), ind_blue[0].mean()]
-#     mean_mag=[ind_mag[1].mean(), ind_mag[0].mean()]
-#     mean_yel=[ind_yel[1].mean(), ind_yel[0].mean()]
-#     mean_pt=np.array([mean_red,mean_blue,mean_mag,mean_yel])
-    
-#     key3d=annots['keypoints3d']
-#     key2d=np.array(annots['keypoints2d'])[:,:2]
-#     key2d_mat=key2d.reshape(-1,2)
-#     # corner=key2d.reshape(10,-1)
-#     corner=key2d[0,:].reshape(-1,2)
-#     corner=np.append(corner,key2d[pattern[0]-1,:].reshape(-1,2),axis=0)
-#     corner=np.append(corner,key2d[pattern[0]*(pattern[1]-1),:].reshape(-1,2),axis=0)
-#     corner=np.append(corner,key2d[pattern[0]*pattern[1]-1,:].reshape(-1,2),axis=0)
-    
-#     temp=np.zeros(4)
-#     for corners in corner:
-#         for ind, means in enumerate(mean_pt):
-#             # corners=np.repeat(corners.reshape(-1,2),4,axis=0)
-#             temp[ind]=np.linalg.norm(corners-means)
-#         if temp.argmin()==0:
-#             corner_red=corners
-#         elif temp.argmin()==1:
-#             corner_blue=corners
-#         elif temp.argmin()==2:
-#             corner_mag=corners
-#         else:
-#             corner_yel=corners
-#     # plt.scatter(corner[:,1],corner[:,0])
-#     corner_ideal=np.array([corner_red, corner_yel, corner_mag, corner_blue]) #ideal color of corners
-#     corner_flip=np.flipud(corner_ideal)
-    
-#     if corner.tolist()==corner_ideal.tolist():
-#         pass
-#     elif corner.tolist()==corner_flip.tolist():
-#         annots['keypoints2d']=np.flipud(np.array(annots['keypoints2d'])).tolist()
-        
-#     return annots
-
 def rearrange(corner,img,pattern):
     
     img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
@@ -278,8 +229,16 @@ def rearrange(corner,img,pattern):
         corner=np.flipud(key2d)
         
     return corner
-    
 
+def rescaling(corners,size_ori,size_img):
+    corners=np.array(corners)
+    size_ori=np.array(size_ori)
+    size_img=np.array(size_img)
+    corners[0,:]=corners[0,:]*size_ori[0]/size_img[0]
+    corners[1,:]=corners[1,:]*size_ori[1]/size_img[1]
+    
+    return corners
+    
 def detect_chessboard(path, out, pattern, gridSize, args):
     create_chessboard(path, pattern, gridSize, ext=args.ext)
     dataset = ImageFolder(path, annot='chessboard', ext=args.ext)
@@ -296,12 +255,9 @@ def detect_chessboard(path, out, pattern, gridSize, args):
         # img = cv2.resize(img, dsize=(1998*2, 1125*2), interpolation=cv2.INTER_AREA) 
         # 2. detect the cross-point
         show = findChessboardCorners(img, annots, pattern)
-        # 3. rearrange the 2d-keypoints
-        # if show is None:
-        #     continue
-        # else:
-        #     annots=rearrange(annots,img,pattern)
         # 4. rescale the 2d-keypoints
+        temp_2dkey=rescaling(annots['keypoints2d'],[1279,720],[1998,1125])
+        annots['keypoints2d']=temp_2dkey.tolist()
         save_json(annotname, annots)        
         if show is None:
             if args.debug:
