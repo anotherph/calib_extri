@@ -15,9 +15,10 @@ import numpy as np
 from skimage import io
 import cv2
 from PIL import Image
+import matplotlib.pyplot as plt
 
-path_img = '/home/jekim/workspace/calib_extri/cal_data_sample/extri_data/images_1/4'
-save_img = './cal_data_sample/extri_data/image_1_noback/4' # use relative path
+path_img = '/home/jekim/workspace/calib_extri/cal_data_sample/extri_data/image_mark/3'
+save_img = './cal_data_sample/extri_data/image_1_noback/3' # use relative path
 list_img = os.listdir(path_img)
 
 for ind in os.listdir(path_img):
@@ -100,7 +101,7 @@ for ind in os.listdir(path_img):
     mask[ind_mask]=1
     plt.imshow(mask*img)
     a=1
-    cv2.imwrite(os.path.join(save_img,ind),mask*img)
+    cv2.imwrite(os.path.join(save_img,ind),cv2.cvtColor(mask*img,cv2.COLOR_RGB2BGR))
 
     
 

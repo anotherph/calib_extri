@@ -2,14 +2,20 @@
   @ Date: 2022-04-20
   @ Author: jekim
   
-  original code for detecting the chessboard in Easymocap
+  # Detect the corner of chessboard (Ver.3)
+  
+  same as Ver.2, add 1 parser and parameterize of image_size
+  
+  1. detect cross-point on chess-board 
+	if detection is failed, change the size of image (factor of 1, 1.5, 2, 2.5)
+	return the 2d keypoints and the size of image
+  2. rearrange:flip the 2d-keypoint to match the 3d-keypoint of real-world
+  3. rescale the 2d-keypoint of resized image to that of the original image
+  4. remove the outputs which does not have chess board result with respect to all views
   
 '''
-# detect the corner of chessboard
-# from easymocap.annotator.file_utils import getFileList, read_json, save_json
+
 from tqdm import tqdm
-# from easymocap.annotator import ImageFolder
-# from easymocap.annotator.chessboard import getChessboard3d, findChessboardCorners
 import numpy as np
 from os.path import join
 import matplotlib.pyplot as plt
@@ -99,7 +105,6 @@ class ImageFolder:
     
 def getChessboard3d(pattern, gridSize):
     object_points = np.zeros((pattern[1]*pattern[0], 3), np.float32)
-    # 注意：这里为了让标定板z轴朝上，设定了短边是x，长边是y
     object_points[:,:2] = np.mgrid[0:pattern[0], 0:pattern[1]].T.reshape(-1,2)
     object_points[:, [0, 1]] = object_points[:, [1, 0]]
     object_points = object_points * gridSize
@@ -124,6 +129,7 @@ def _findChessboardCorners(img, pattern):
         return False, None
     corners = cv2.cornerSubPix(img, corners, (11, 11), (-1, -1), criteria)
     corners = corners.squeeze()
+    # plt.scatter(corners[:,0],corners[:,1])
     return True, corners
 
 def _findChessboardCornersAdapt(img, pattern):
@@ -139,20 +145,25 @@ def findChessboardCorners(img, annots, pattern):
     elif annots['visited']:
         return None
     annots['visited'] = True
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    # Find the chess board corners
-    for func in [_findChessboardCornersAdapt, _findChessboardCorners]:
-        ret, corners = func(gray, pattern)
-        if ret:break
-    else:
+    factor=[1, 1.5, 2, 2.5]
+    for factor_ in factor:
+        img_size=img.shape # the size of original image
+        img = cv2.resize(img, dsize=(int(img_size[1]*factor_), int(img_size[0]*factor_)), interpolation=cv2.INTER_AREA) 
+        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        # Find the chess board corners
+        for func in [_findChessboardCornersAdapt, _findChessboardCorners]:
+            ret, corners = func(gray, pattern)
+            if ret:
+                corners=rearrange(corners,img,pattern)
+                show = img.copy()
+                show = cv2.drawChessboardCorners(show, pattern, corners, ret)
+                assert corners.shape[0] == len(annots['keypoints2d'])
+                corners = np.hstack((corners, np.ones((corners.shape[0], 1))))
+                temp_2dkey=rescaling(corners.tolist(),[img_size[1],img_size[0]],[img.shape[1],img.shape[0]])
+                annots['keypoints2d']=temp_2dkey.tolist()
+                return show
+    if not ret: # if the last ret is false, we declare it is failed to detect chess board and return nothing
         return None
-    # found the corners
-    show = img.copy()
-    show = cv2.drawChessboardCorners(show, pattern, corners, ret)
-    assert corners.shape[0] == len(annots['keypoints2d'])
-    corners = np.hstack((corners, np.ones((corners.shape[0], 1))))
-    annots['keypoints2d'] = corners.tolist()
-    return show
 
 def create_chessboard(path, pattern, gridSize, ext):
     print('Create chessboard {}'.format(pattern))
@@ -174,9 +185,67 @@ def create_chessboard(path, pattern, gridSize, ext):
             save_json(annname, data)
         else:
             save_json(annname, template)
-    
 
-def detect_chessboard(path, out, pattern, gridSize, args):
+def rearrange(corner,img,pattern):
+    
+    img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+    
+    ind_red=np.where((img==[254,0,0]).all(axis=2)) # red color in real 3d world [0,0,0]
+    ind_blue = np.where((img==[0,0,254]).all(axis=2)) # blue color in real 3d world[5,9,0]
+    ind_mag = np.where((img==[255,0,254]).all(axis=2)) # magenta color in real 3d world[5,0,0]
+    ind_yel = np.where((img==[255,255,1]).all(axis=2)) # yellow color in real 3d world [0,9,0]
+    
+    mean_red=[ind_red[1].mean(), ind_red[0].mean()]
+    mean_blue=[ind_blue[1].mean(), ind_blue[0].mean()]
+    mean_mag=[ind_mag[1].mean(), ind_mag[0].mean()]
+    mean_yel=[ind_yel[1].mean(), ind_yel[0].mean()]
+    mean_pt=np.array([mean_red,mean_blue,mean_mag,mean_yel])
+    
+    # key3d=annots['keypoints3d']
+    # key2d=np.array(annots['keypoints2d'])[:,:2]
+    key2d=corner
+    # key2d_mat=key2d.reshape(-1,2)
+    # corner=key2d.reshape(10,-1)
+    corner_=key2d[0,:].reshape(-1,2)
+    corner_=np.append(corner_,key2d[pattern[0]-1,:].reshape(-1,2),axis=0)
+    corner_=np.append(corner_,key2d[pattern[0]*(pattern[1]-1),:].reshape(-1,2),axis=0)
+    corner_=np.append(corner_,key2d[pattern[0]*pattern[1]-1,:].reshape(-1,2),axis=0)
+    
+    temp=np.zeros(4)
+    for corners in corner_:
+        for ind, means in enumerate(mean_pt):
+            # corners=np.repeat(corners.reshape(-1,2),4,axis=0)
+            temp[ind]=np.linalg.norm(corners-means)
+        if temp.argmin()==0:
+            corner_red=corners
+        elif temp.argmin()==1:
+            corner_blue=corners
+        elif temp.argmin()==2:
+            corner_mag=corners
+        else:
+            corner_yel=corners
+    # plt.scatter(corner[:,1],corner[:,0])
+    corner_ideal=np.array([corner_red, corner_yel, corner_mag, corner_blue]) #ideal color of corners
+    corner_flip=np.flipud(corner_ideal)
+    
+    if corner_.tolist()==corner_ideal.tolist():
+        pass
+    elif corner_.tolist()==corner_flip.tolist():
+        # annots['keypoints2d']=np.flipud(np.array(annots['keypoints2d'])).tolist()
+        corner=np.flipud(key2d)
+        
+    return corner
+
+def rescaling(corners,size_ori,size_img):
+    corners=np.array(corners)
+    size_ori=np.array(size_ori)
+    size_img=np.array(size_img)
+    corners[:,0]=corners[:,0]*size_ori[0]/size_img[0]
+    corners[:,1]=corners[:,1]*size_ori[1]/size_img[1]
+    
+    return corners
+    
+def detect_chessboard(path, out, pattern, invalid, gridSize, args):
     create_chessboard(path, pattern, gridSize, ext=args.ext)
     dataset = ImageFolder(path, annot='chessboard', ext=args.ext)
     dataset.isTmp = False
@@ -197,19 +266,44 @@ def detect_chessboard(path, out, pattern, gridSize, args):
         outname = join(out, imgname.replace(path + '/images/', ''))
         os.makedirs(os.path.dirname(outname), exist_ok=True)
         cv2.imwrite(outname, show)
+    
+    if invalid:
+        # find the non-valid detection-results
+        name_cam=os.listdir(os.path.join(path,'images'))
+        name_cam.sort()
+        file_list=os.listdir(os.path.join(path,'images',name_cam[0]))
+        file_list_images = np.array([file for file in file_list if file.endswith(".jpg")])
+        file_list_images.sort()
+        name_result=np.zeros([len(name_cam),len(file_list_images)])
+        for ind_cam, cam in enumerate(name_cam):
+            cam_list=np.array(os.listdir(os.path.join(out,cam)))
+            for ind_file_, file_ in enumerate(file_list_images):
+                if True in (cam_list==file_):
+                    name_result[ind_cam,ind_file_]=1
+        index_invalid=np.where(name_result==0)
+        
+        #get rid of the invalid chessboard data
+        index_invalid_img=file_list_images[np.unique(index_invalid[1])] # image_index of return None
+        for index in index_invalid_img:
+            file_name=os.path.splitext(index)[0]
+            for cam in name_cam:
+                path_invalid=os.path.join(path,'chessboard',cam,file_name+'.json')
+                os.remove(path_invalid)
+    
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     # parser.add_argument('path', type=str)
-    parser.add_argument('--path', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample1/extri_data')
+    parser.add_argument('--path', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample/extri_data')
     # parser.add_argument('--out', type=str, required=True)
-    parser.add_argument('--out', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample1/extri_data/output/calibration')
+    parser.add_argument('--out', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample/extri_data/output/calibration')
     parser.add_argument('--ext', type=str, default='.jpg', choices=['.jpg', '.png'])
     parser.add_argument('--pattern', type=lambda x: (int(x.split(',')[0]), int(x.split(',')[1])),
-        help='The pattern of the chessboard', default=(2, 2))
-    parser.add_argument('--grid', type=float, default=0.107*3, 
+        help='The pattern of the chessboard', default=(10, 6))
+    parser.add_argument('--grid', type=float, default=0.107, 
         help='The length of the grid size (unit: meter)')
+    parser.add_argument('--invalid',type=str,default='True')
     parser.add_argument('--max_step', type=int, default=50)
     parser.add_argument('--min_step', type=int, default=0)
     
@@ -217,9 +311,5 @@ if __name__ == "__main__":
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--seq', action='store_true')
     args = parser.parse_args()
-    detect_chessboard(args.path, args.out, pattern=args.pattern, gridSize=args.grid, args=args)
+    detect_chessboard(args.path, args.out, pattern=args.pattern, invalid=args.invalid, gridSize=args.grid, args=args)
     
-    # if args.seq:
-    #     detect_chessboard_sequence(args.path, args.out, pattern=args.pattern, gridSize=args.grid, args=args)
-    # else:
-    #     detect_chessboard(args.path, args.out, pattern=args.pattern, gridSize=args.grid, args=args)

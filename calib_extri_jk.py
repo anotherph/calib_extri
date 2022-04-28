@@ -11,7 +11,7 @@ from os.path import join
 import numpy as np
 import cv2
 import json
-# from easymocap.mytools import read_intri, write_extri, read_json
+import matplotlib.pyplot as plt
 
 class FileStorage(object):
     def __init__(self, filename, isWrite=False):
@@ -105,8 +105,11 @@ def calib_extri(path, intriname):
         chessname = chessnames[0]
         data = read_json(chessname)
         k3d = np.array(data['keypoints3d'], dtype=np.float32)
+        # k3d=k3d[[0,9,50,59],:] # choose the 4point 
         k3d[:, 0] *= -1
         k2d = np.array(data['keypoints2d'], dtype=np.float32)
+        # k2d=k2d[[0,9,50,59],:] # choose the 4point
+        # plt.scatter(k2d1[:,0],k2d1[:,1])
         k2d = np.ascontiguousarray(k2d[:, :-1])
         ret, rvec, tvec = cv2.solvePnP(k3d, k2d, intri[cam]['K'], intri[cam]['dist'])
         extri[cam] = {}
@@ -121,9 +124,9 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     # parser.add_argument('path', type=str)
-    parser.add_argument('--path', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample/extri_data/')
+    parser.add_argument('--path', type=str,default='/home/jekim/workspace/calib_extri/cal_data_ex/extri_data/')
     # parser.add_argument('--intri', type=str)
-    parser.add_argument('--intri', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample/intri_data/output/intri.yml')
+    parser.add_argument('--intri', type=str,default='/home/jekim/workspace/calib_extri/cal_data_ex/intri_data/output/intri.yml')
     parser.add_argument('--step', type=int, default=1)
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()

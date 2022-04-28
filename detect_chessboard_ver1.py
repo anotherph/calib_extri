@@ -2,7 +2,7 @@
   @ Date: 2022-04-20
   @ Author: jekim
   
-  # Detect the corner of chessboard
+  # Detect the corner of chessboard (Ver.1)
   
   1. resize the image (original image size: 720:1279) to detect cross-point clearly
   2. detect cross-point on chess-board
@@ -234,8 +234,8 @@ def rescaling(corners,size_ori,size_img):
     corners=np.array(corners)
     size_ori=np.array(size_ori)
     size_img=np.array(size_img)
-    corners[0,:]=corners[0,:]*size_ori[0]/size_img[0]
-    corners[1,:]=corners[1,:]*size_ori[1]/size_img[1]
+    corners[:,0]=corners[:,0]*size_ori[0]/size_img[0]
+    corners[:,1]=corners[:,1]*size_ori[1]/size_img[1]
     
     return corners
     
@@ -252,11 +252,12 @@ def detect_chessboard(path, out, pattern, gridSize, args):
         img = cv2.imread(imgname)
         annots = read_json(annotname)
         # 1. resize the image
-        # img = cv2.resize(img, dsize=(1998*2, 1125*2), interpolation=cv2.INTER_AREA) 
+        factor=1
+        img = cv2.resize(img, dsize=(int(1998*factor), int(1125*factor)), interpolation=cv2.INTER_AREA) 
         # 2. detect the cross-point
         show = findChessboardCorners(img, annots, pattern)
         # 4. rescale the 2d-keypoints
-        temp_2dkey=rescaling(annots['keypoints2d'],[1279,720],[1998,1125])
+        temp_2dkey=rescaling(annots['keypoints2d'],[1279,720],[img.shape[1],img.shape[0]])
         annots['keypoints2d']=temp_2dkey.tolist()
         save_json(annotname, annots)        
         if show is None:
