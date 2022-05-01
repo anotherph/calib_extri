@@ -228,11 +228,45 @@ def rearrange(corner,img,pattern):
     corner_ideal=np.array([corner_red, corner_yel, corner_mag, corner_blue]) #ideal color of corners
     corner_flip=np.flipud(corner_ideal)
     
+    # match [0,0,0] to red corner
+    
+    # if corner_.tolist()==corner_ideal.tolist():
+    #     pass
+    # elif corner_.tolist()==corner_flip.tolist():
+    #     corner=np.flipud(key2d)
+    
+    # match [0,0,0] to yellow corner
+    
     if corner_.tolist()==corner_ideal.tolist():
         pass
     elif corner_.tolist()==corner_flip.tolist():
-        # annots['keypoints2d']=np.flipud(np.array(annots['keypoints2d'])).tolist()
         corner=np.flipud(key2d)
+    
+    temp_x=corner[:,0].reshape(pattern[1],-1)
+    temp_y=corner[:,1].reshape(pattern[1],-1)
+    for i in range(pattern[1]):
+        corner[i*pattern[0]:(i+1)*pattern[0],0]=np.flipud(temp_x[i,:])
+        corner[i*pattern[0]:(i+1)*pattern[0],1]=np.flipud(temp_y[i,:])
+        
+    # match [0,0,0] to blue corner   
+    
+    # if corner_.tolist()==corner_ideal.tolist():
+    #     pass
+    # elif corner_.tolist()==corner_flip.tolist():
+    #     corner=np.flipud(key2d)
+    
+    # match [0,0,0] to magenta corner
+    
+    # if corner_.tolist()==corner_flip.tolist():
+    #     pass
+    # elif corner_.tolist()==corner_ideal.tolist():
+    #     corner=np.flipud(key2d)
+    
+    # temp_x=corner[:,0].reshape(pattern[1],-1)
+    # temp_y=corner[:,1].reshape(pattern[1],-1)
+    # for i in range(pattern[1]):
+    #     corner[i*pattern[0]:(i+1)*pattern[0],0]=np.flipud(temp_x[i,:])
+    #     corner[i*pattern[0]:(i+1)*pattern[0],1]=np.flipud(temp_y[i,:])
         
     return corner
 
