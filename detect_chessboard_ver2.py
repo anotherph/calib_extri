@@ -227,14 +227,14 @@ def rearrange(corner,img,pattern):
     corner_ideal=np.array([corner_red, corner_yel, corner_mag, corner_blue]) #ideal color of corners
     corner_flip=np.flipud(corner_ideal)
     
-    # match [0,0,0] to red corner
+    '''match [0,0,0] to red corner'''
     
     # if corner_.tolist()==corner_ideal.tolist():
     #     pass
     # elif corner_.tolist()==corner_flip.tolist():
     #     corner=np.flipud(key2d)
     
-    # match [0,0,0] to yellow corner
+    '''match [0,0,0] to yellow corner'''
     
     if corner_.tolist()==corner_ideal.tolist():
         pass
@@ -247,14 +247,14 @@ def rearrange(corner,img,pattern):
         corner[i*pattern[0]:(i+1)*pattern[0],0]=np.flipud(temp_x[i,:])
         corner[i*pattern[0]:(i+1)*pattern[0],1]=np.flipud(temp_y[i,:])
         
-    # match [0,0,0] to blue corner   
+    '''match [0,0,0] to blue corner'''
     
     # if corner_.tolist()==corner_ideal.tolist():
     #     pass
     # elif corner_.tolist()==corner_flip.tolist():
     #     corner=np.flipud(key2d)
     
-    # match [0,0,0] to magenta corner
+    '''match [0,0,0] to magenta corner'''
     
     # if corner_.tolist()==corner_flip.tolist():
     #     pass

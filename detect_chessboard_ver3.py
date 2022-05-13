@@ -301,41 +301,41 @@ def detect_chessboard(path, out, pattern, invalid, gridSize, args):
         os.makedirs(os.path.dirname(outname), exist_ok=True)
         cv2.imwrite(outname, show)
     
-    if invalid:
-        # find the non-valid detection-results
-        name_cam=os.listdir(os.path.join(path,'images'))
-        name_cam.sort()
-        file_list=os.listdir(os.path.join(path,'images',name_cam[0]))
-        file_list_images = np.array([file for file in file_list if file.endswith(".jpg")])
-        file_list_images.sort()
-        name_result=np.zeros([len(name_cam),len(file_list_images)])
-        for ind_cam, cam in enumerate(name_cam):
-            cam_list=np.array(os.listdir(os.path.join(out,cam)))
-            for ind_file_, file_ in enumerate(file_list_images):
-                if True in (cam_list==file_):
-                    name_result[ind_cam,ind_file_]=1
-        index_invalid=np.where(name_result==0)
+    # if invalid:
+    #     # find the non-valid detection-results
+    #     name_cam=os.listdir(os.path.join(path,'images'))
+    #     name_cam.sort()
+    #     file_list=os.listdir(os.path.join(path,'images',name_cam[0]))
+    #     file_list_images = np.array([file for file in file_list if file.endswith(".jpg")])
+    #     file_list_images.sort()
+    #     name_result=np.zeros([len(name_cam),len(file_list_images)])
+    #     for ind_cam, cam in enumerate(name_cam):
+    #         cam_list=np.array(os.listdir(os.path.join(out,cam)))
+    #         for ind_file_, file_ in enumerate(file_list_images):
+    #             if True in (cam_list==file_):
+    #                 name_result[ind_cam,ind_file_]=1
+    #     index_invalid=np.where(name_result==0)
         
-        #get rid of the invalid chessboard data
-        index_invalid_img=file_list_images[np.unique(index_invalid[1])] # image_index of return None
-        for index in index_invalid_img:
-            file_name=os.path.splitext(index)[0]
-            for cam in name_cam:
-                path_invalid=os.path.join(path,'chessboard',cam,file_name+'.json')
-                os.remove(path_invalid)
+    #     #get rid of the invalid chessboard data
+    #     index_invalid_img=file_list_images[np.unique(index_invalid[1])] # image_index of return None
+    #     for index in index_invalid_img:
+    #         file_name=os.path.splitext(index)[0]
+    #         for cam in name_cam:
+    #             path_invalid=os.path.join(path,'chessboard',cam,file_name+'.json')
+    #             os.remove(path_invalid)
     
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     # parser.add_argument('path', type=str)
-    parser.add_argument('--path', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample/extri_data')
+    parser.add_argument('--path', type=str,default='/home/jekim/workspace/calib_extri/cal0513/extri_data')
     # parser.add_argument('--out', type=str, required=True)
-    parser.add_argument('--out', type=str,default='/home/jekim/workspace/calib_extri/cal_data_sample/extri_data/output/calibration')
-    parser.add_argument('--ext', type=str, default='.jpg', choices=['.jpg', '.png'])
+    parser.add_argument('--out', type=str,default='/home/jekim/workspace/calib_extri/cal0513/extri_data/output/calibration')
+    parser.add_argument('--ext', type=str, default='.png', choices=['.jpg', '.png'])
     parser.add_argument('--pattern', type=lambda x: (int(x.split(',')[0]), int(x.split(',')[1])),
-        help='The pattern of the chessboard', default=(10, 6))
-    parser.add_argument('--grid', type=float, default=0.107, 
+        help='The pattern of the chessboard', default=(5, 5))
+    parser.add_argument('--grid', type=float, default=0.23, 
         help='The length of the grid size (unit: meter)')
     parser.add_argument('--invalid',type=str,default='True')
     parser.add_argument('--max_step', type=int, default=50)
